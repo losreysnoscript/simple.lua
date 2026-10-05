@@ -1,5 +1,5 @@
 --[[
-    SIMPLE | Auto Sea 3 (REWRITTEN v6 - ANCHORED FLIGHT & FULL QUEST FLOW)
+    SIMPLE | Auto Sea 3 (REWRITTEN - ANCHORED FLIGHT & QUEST FLOW)
 ]]
 
 if not game:IsLoaded() then game.Loaded:Wait() end
@@ -41,7 +41,6 @@ end
 getgenv().Simple = getgenv().Simple or {Enabled = true}
 local S = getgenv().Simple
 
--- POSITIONS
 local COLOSSEUM_JAIL = CFrame.new(-2870, 65, -5420)
 local MANSION_DOOR   = CFrame.new(2284.5, 15, 905.3)
 local GREEN_ZONE_DOCK= CFrame.new(-3140, 35, -3400)
@@ -53,7 +52,6 @@ local function Level() return LP.Data and LP.Data.Level and LP.Data.Level.Value 
 local function HRP() local c = LP.Character return c and c:FindFirstChild("HumanoidRootPart") end
 local function Hum() local c = LP.Character return c and c:FindFirstChildOfClass("Humanoid") end
 
--- Noclip
 RunService.Stepped:Connect(function()
     if S.Enabled and LP.Character then
         for _, p in ipairs(LP.Character:GetDescendants()) do
@@ -64,29 +62,25 @@ end)
 
 local currentTween = nil
 
--- SAFE 3-STAGE ANCHORED FLIGHT (Prevents water drag & anticheat rubberbands)
 local function SmoothFlyTo(targetCF)
     local root = HRP()
     if not root then return end
     if currentTween then currentTween:Cancel() end
 
-    -- Anchor character so gravity cannot pull you into water mid-flight
     root.Anchored = true
 
     local startPos = root.Position
-    local flightHeight = math.max(startPos.Y, targetCF.Y, 280) -- Fly high above water
+    local flightHeight = math.max(startPos.Y, targetCF.Y, 280)
     
     local highStart = Vector3.new(startPos.X, flightHeight, startPos.Z)
     local highTarget = Vector3.new(targetCF.X, flightHeight, targetCF.Z)
 
-    -- Stage 1: Ascend straight up safely
     if (startPos - highStart).Magnitude > 15 then
         local tUp = TweenService:Create(root, TweenInfo.new((startPos - highStart).Magnitude / 150, Enum.EasingStyle.Linear), {CFrame = CFrame.new(highStart)})
         tUp:Play()
         tUp.Completed:Wait()
     end
 
-    -- Stage 2: Fly horizontally across the ocean
     local distAcross = (highStart - highTarget).Magnitude
     if distAcross > 15 then
         local tAcross = TweenService:Create(root, TweenInfo.new(distAcross / 160, Enum.EasingStyle.Linear), {CFrame = CFrame.new(highTarget)})
@@ -94,12 +88,10 @@ local function SmoothFlyTo(targetCF)
         tAcross.Completed:Wait()
     end
 
-    -- Stage 3: Descend smoothly to ground destination (No instant drop)
     local tDown = TweenService:Create(root, TweenInfo.new((highTarget - targetCF.Position).Magnitude / 140, Enum.EasingStyle.Linear), {CFrame = targetCF})
     tDown:Play()
     tDown.Completed:Wait()
 
-    -- Unanchor upon safe arrival
     root.Anchored = false
 end
 
@@ -131,7 +123,6 @@ LP.Idled:Connect(function()
     VirtualUser:ClickButton2(Vector2.new())
 end)
 
--- QUEST SEQUENCE TRACKER
 local questStep = 1
 
 task.spawn(function()
@@ -161,7 +152,6 @@ task.spawn(function()
             continue
         end
 
-        -- STEP 1: Talk to King Red Head (Initial Quest Start)
         if questStep == 1 then
             SetStatus("1/5: Flying to Colosseum...")
             SmoothFlyTo(COLOSSEUM_JAIL)
@@ -174,7 +164,6 @@ task.spawn(function()
             questStep = 2
         end
 
-        -- STEP 2: Unlock Mansion / Don Swan Door
         if questStep == 2 then
             SetStatus("2/5: Flying to Mansion...")
             SmoothFlyTo(MANSION_DOOR)
@@ -187,7 +176,6 @@ task.spawn(function()
             questStep = 3
         end
 
-        -- STEP 3: Defeat Don Swan
         if questStep == 3 then
             SetStatus("3/5: Checking Don Swan...")
             local swan, rp, hum = FindDonSwan()
@@ -204,20 +192,17 @@ task.spawn(function()
                 task.wait(2)
                 questStep = 4
             else
-                -- If Don Swan hasn't spawned, wait briefly and re-check
                 SetStatus("Waiting for Don Swan to load...")
                 task.wait(3)
                 swan, rp, hum = FindDonSwan()
                 if swan then
                     questStep = 3
                 else
-                    -- Move on to step 4 if room/quest is already done
                     questStep = 4
                 end
             end
         end
 
-        -- STEP 4: Return to King Red Head (Mandatory step to complete quest)
         if questStep == 4 then
             SetStatus("4/5: Returning to King Red Head...")
             SmoothFlyTo(COLOSSEUM_JAIL)
@@ -230,7 +215,6 @@ task.spawn(function()
             questStep = 5
         end
 
-        -- STEP 5: Travel to Sea 3 via Mr. Captain
         if questStep == 5 then
             SetStatus("5/5: Flying to Mr. Captain...")
             SmoothFlyTo(GREEN_ZONE_DOCK)
@@ -244,7 +228,6 @@ task.spawn(function()
     end
 end)
 
--- GUI
 pcall(function() if CoreGui:FindFirstChild("SimpleGui") then CoreGui.SimpleGui:Destroy() end end)
 
 local gui = Instance.new("ScreenGui")
@@ -315,5 +298,4 @@ task.spawn(function()
     end
 end)
 
-Notify("SIMPLE", "v6 loaded - Anchored flight system")
-print("[SIMPLE] Auto Sea 3 REWRITTEN v6")
+Notify("SIMPLE", "Loaded successfully")
