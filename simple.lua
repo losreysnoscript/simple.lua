@@ -2,6 +2,8 @@
     SIMPLE  |  Auto Sea 3
     Requirements: Level 1500+ in Sea 2
     Automates: Trevor dialogue -> Don Swan boss -> Travel to Sea 3
+
+    NEVER kicks. Unknown place IDs still run (assume Sea 2).
 ]]
 
 if not game:IsLoaded() then
@@ -18,24 +20,62 @@ local TweenService      = game:GetService("TweenService")
 local VirtualUser       = game:GetService("VirtualUser")
 local RunService        = game:GetService("RunService")
 local CoreGui           = game:GetService("CoreGui")
+local StarterGui        = game:GetService("StarterGui")
 
 local LP = Players.LocalPlayer
+local PlaceId = tonumber(game.PlaceId) or game.PlaceId
 
--- Verify current sea place ID
-local SEA = ({
-    [2753915549] = 1,
-    [4442272183] = 2,
-    [7449423635] = 3,
-})[game.PlaceId]
-
-if not SEA then
-    LP:Kick("Simple Auto Sea 3: Please join Blox Fruits first.")
-    return
+local function Notify(title, text)
+    pcall(function()
+        StarterGui:SetCore("SendNotification", {
+            Title = title,
+            Text = text,
+            Duration = 6,
+        })
+    end)
 end
 
-local CommF = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
+local function DetectSea()
+    if PlaceId == 2753915549 then return 1 end
+    if PlaceId == 4442272183 then return 2 end
+    if PlaceId == 7449423635 then return 3 end
+
+    local hints = {
+        [1] = {"WindMill", "Windmill", "MarineStart", "Jungle", "PirateVillage", "Fountain", "Colosseum"},
+        [2] = {"Cafe", "Kingdom of Rose", "Green Zone", "Graveyard", "HotAndCold", "CursedShip", "ForgottenIsland"},
+        [3] = {"Port Town", "Hydra Island", "Great Tree", "Floating Turtle", "Haunted Castle", "Sea of Treats", "Tiki Outpost"},
+    }
+
+    local function has(name)
+        if workspace:FindFirstChild(name) then return true end
+        local map = workspace:FindFirstChild("Map")
+        if map and map:FindFirstChild(name) then return true end
+        return false
+    end
+
+    for sea, names in pairs(hints) do
+        for _, n in ipairs(names) do
+            if has(n) then
+                return sea
+            end
+        end
+    end
+
+    return 2
+end
+
+local SEA = DetectSea()
+
+local 	remotes = ReplicatedStorage:FindFirstChild("Remotes")
+local CommF = remotes and remotes:FindFirstChild("CommF_")
+
+if not CommF then
+    Notify("SIMPLE", "Remotes not found. Wait in Blox Fruits, then execute again.")
+    warn("[SIMPLE] CommF_ missing. PlaceId = " .. tostring(PlaceId))
+end
 
 local function Invoke(...)
+    if not CommF then return end
     local ok, result = pcall(function(...)
         return CommF:InvokeServer(...)
     end, ...)
@@ -44,14 +84,12 @@ local function Invoke(...)
     end
 end
 
--- Global Configuration
-getgenv().Simple = getgenv().Simple or {
-    Enabled = true,
-}
+getgenv().Simple = getgenv().Simple or {}
 local S = getgenv().Simple
+S.Enabled = true
 
 local MANSION = CFrame.new(2288.23, 15.18, 905.27)
-local StatusText = "Starting..."
+local StatusText = "Starting...  PlaceId " .. tostring(PlaceId)
 
 local function SetStatus(t)
     StatusText = t
@@ -71,7 +109,6 @@ local function Hum()
     return c and c:FindFirstChildOfClass("Humanoid")
 end
 
--- Continuous Noclip logic (prevents getting stuck in objects while flying)
 RunService.Stepped:Connect(function()
     if S.Enabled and LP.Character then
         for _, p in ipairs(LP.Character:GetDescendants()) do
@@ -82,19 +119,15 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- Safe Movement (250 studs/sec to prevent rubberbanding)
 local currentTween = nil
 local function TweenTo(cf)
     local root = HRP()
     if not root then return end
-    
     if currentTween then
         currentTween:Cancel()
     end
-    
     local dist = (root.Position - cf.Position).Magnitude
     local duration = math.clamp(dist / 250, 0.15, 10)
-    
     currentTween = TweenService:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Linear), {CFrame = cf})
     currentTween:Play()
     currentTween.Completed:Wait()
@@ -119,25 +152,44 @@ local function FindDonSwan()
     end
 end
 
+local function EquipCombat()
+    local char = LP.Character
+    local bag = LP:FindFirstChild("Backpack")
+    if not char then return end
+    if char:FindFirstChildOfClass("Tool") then return end
+    if not bag then return end
+    local tool = bag:FindFirstChild("Combat") or bag:FindFirstChildOfClass("Tool")
+    local hum = Hum()
+    if tool and hum then
+        pcall(function()
+            hum:EquipTool(tool)
+        end)
+    end
+end
+
 local function Attack()
+    EquipCombat()
     pcall(function()
         VirtualUser:CaptureController()
         VirtualUser:ClickButton1(Vector2.new())
     end)
 end
 
--- Anti-AFK Protection
 LP.Idled:Connect(function()
     VirtualUser:CaptureController()
     VirtualUser:ClickButton2(Vector2.new())
 end)
 
--- Main Loop
 task.spawn(function()
     while task.wait(0.5) do
         if not S.Enabled then
             if currentTween then currentTween:Cancel() end
             SetStatus("Stopped")
+            continue
+        end
+
+        if not CommF then
+            SetStatus("Not in Blox Fruits remotes. PlaceId " .. tostring(PlaceId))
             continue
         end
 
@@ -159,7 +211,6 @@ task.spawn(function()
             continue
         end
 
-        -- Step 1: Speak to Trevor
         SetStatus("Talking to Trevor...")
         Invoke("TalkTrevor", "1")
         task.wait(0.3)
@@ -168,7 +219,6 @@ task.spawn(function()
         Invoke("TalkTrevor", "3")
         task.wait(0.3)
 
-        -- Step 2: Check for Don Swan
         local swan, rp, hum = FindDonSwan()
 
         if swan and rp and hum then
@@ -201,17 +251,13 @@ task.spawn(function()
                 SetStatus("Attempting to travel to Sea 3...")
                 Invoke("TravelZou")
                 task.wait(3)
-
-                if SEA == 2 then
-                    SetStatus("Waiting for Don Swan to spawn...")
-                    task.wait(5)
-                end
+                SetStatus("Waiting for Don Swan to spawn...")
+                task.wait(5)
             end
         end
     end
 end)
 
--- GUI Setup
 pcall(function()
     if CoreGui:FindFirstChild("SimpleGui") then
         CoreGui.SimpleGui:Destroy()
@@ -306,4 +352,5 @@ task.spawn(function()
     end
 end)
 
-print("[SIMPLE] Auto Sea 3 script fully loaded!")
+Notify("SIMPLE", "Loaded. Sea " .. tostring(SEA) .. "  Lv " .. tostring(Level()))
+print("[SIMPLE] Auto Sea 3 loaded  |  Sea " .. tostring(SEA) .. "  |  PlaceId " .. tostring(PlaceId))
