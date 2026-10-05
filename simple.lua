@@ -1,9 +1,8 @@
 --[[
-    SIMPLE  |  Auto Sea 3  (FULL FIXED)
-    - Correct order: Colosseum (King Red Head) first
-    - Only does Don Swan if needed
-    - Safe elevated wait position (no more water deaths)
-    - Keeps you locked on solid ground while waiting
+    SIMPLE  |  Auto Sea 3  (FULL FIXED v3)
+    - Correct order: Colosseum first
+    - Safe high positions (no water deaths)
+    - Stronger height lock while moving
 ]]
 
 if not game:IsLoaded() then
@@ -66,10 +65,10 @@ getgenv().Simple = getgenv().Simple or {}
 local S = getgenv().Simple
 S.Enabled = true
 
--- SAFE POSITIONS
-local COLOSSEUM_JAIL = CFrame.new(-2870, 9, -5420)          -- King Red Head area
-local MANSION_SAFE   = CFrame.new(2284.5, 27.5, 905.3)      -- elevated solid ground (NO WATER)
-local GREEN_ZONE_DOCK= CFrame.new(-3140, 7, -3400)          -- Mr. Captain approx
+-- HIGH SAFE POSITIONS (anti water death)
+local COLOSSEUM_JAIL = CFrame.new(-2870, 60, -5420)
+local MANSION_SAFE   = CFrame.new(2284.5, 40, 905.3)
+local GREEN_ZONE_DOCK= CFrame.new(-3140, 30, -3400)
 
 local StatusText = "Starting...  PlaceId " .. tostring(PlaceId)
 
@@ -91,7 +90,7 @@ local function Hum()
     return c and c:FindFirstChildOfClass("Humanoid")
 end
 
--- Noclip
+-- Noclip + keep high
 RunService.Stepped:Connect(function()
     if S.Enabled and LP.Character then
         for _, p in ipairs(LP.Character:GetDescendants()) do
@@ -109,9 +108,14 @@ local function TweenTo(cf)
     if currentTween then
         currentTween:Cancel()
     end
-    local dist = (root.Position - cf.Position).Magnitude
-    local duration = math.clamp(dist / 250, 0.15, 12)
-    currentTween = TweenService:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Linear), {CFrame = cf})
+
+    -- Force high Y so we never go into water
+    local highCF = CFrame.new(cf.X, math.max(cf.Y, 40), cf.Z)
+
+    local dist = (root.Position - highCF.Position).Magnitude
+    local duration = math.clamp(dist / 280, 0.2, 14)
+
+    currentTween = TweenService:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Linear), {CFrame = highCF})
     currentTween:Play()
     currentTween.Completed:Wait()
     currentTween = nil
@@ -195,35 +199,31 @@ task.spawn(function()
             continue
         end
 
-        -- ========== CORRECT SEA 3 FLOW ==========
-
-        -- 1. Go to Colosseum / King Red Head first
+        -- 1. Go high to Colosseum
         SetStatus("Going to Colosseum (King Red Head)...")
         TweenTo(COLOSSEUM_JAIL)
-        task.wait(1.2)
+        task.wait(1.5)
 
         SetStatus("Talking to King Red Head...")
         Invoke("TalkKingRedHead")
         Invoke("TalkNPC", "King Red Head")
         Invoke("StartSea3Quest")
-        task.wait(1.5)
+        task.wait(2)
 
-        -- 2. Check if Don Swan is still needed
+        -- 2. Check Don Swan
         local swan, rp, hum = FindDonSwan()
 
         if swan and rp and hum then
-            -- Swan is alive → go kill him
-            SetStatus("Don Swan needed → going to safe mansion spot...")
+            SetStatus("Don Swan needed → safe mansion...")
             TweenTo(MANSION_SAFE)
             task.wait(1)
 
-            -- Talk Trevor to open the room
             Invoke("TalkTrevor", "1")
             task.wait(0.3)
             Invoke("TalkTrevor", "2")
             task.wait(0.3)
             Invoke("TalkTrevor", "3")
-            task.wait(0.5)
+            task.wait(0.6)
 
             swan, rp, hum = FindDonSwan()
             if swan and rp and hum then
@@ -231,41 +231,36 @@ task.spawn(function()
                 while S.Enabled and swan and swan.Parent and hum.Health > 0 do
                     local root = HRP()
                     if root then
-                        root.CFrame = rp.CFrame * CFrame.new(0, 8, 3)
+                        root.CFrame = rp.CFrame * CFrame.new(0, 10, 4)
                     end
                     Attack()
                     task.wait(0.05)
                 end
-                SetStatus("Don Swan dead. Returning to Colosseum...")
+                SetStatus("Don Swan dead.")
                 task.wait(2)
             else
-                -- Wait safely for spawn (LOCKED on solid ground)
-                SetStatus("Waiting for Don Swan (safe elevated spot)...")
+                SetStatus("Waiting for Don Swan (safe high)...")
                 local start = tick()
-                while S.Enabled and tick() - start < 15 do
+                while S.Enabled and tick() - start < 18 do
                     local root = HRP()
                     if root then
                         root.CFrame = MANSION_SAFE
                     end
                     task.wait(0.3)
-
                     swan, rp, hum = FindDonSwan()
-                    if swan and rp and hum then
-                        break
-                    end
+                    if swan and rp and hum then break end
                 end
             end
         else
-            -- Swan already dead or not present → try travel
-            SetStatus("Don Swan already done. Going to Mr. Captain...")
+            SetStatus("Going to Mr. Captain (high)...")
             TweenTo(GREEN_ZONE_DOCK)
             task.wait(1.5)
 
-            SetStatus("Talking to Mr. Captain → Travel Sea 3...")
+            SetStatus("Talking to Mr. Captain → Sea 3...")
             Invoke("TravelZou")
             Invoke("TalkCaptain")
             Invoke("StartSea3")
-            task.wait(4)
+            task.wait(5)
         end
     end
 end)
@@ -365,5 +360,5 @@ task.spawn(function()
     end
 end)
 
-Notify("SIMPLE", "FULL FIXED loaded. Sea " .. tostring(SEA) .. "  Lv " .. tostring(Level()))
-print("[SIMPLE] Auto Sea 3 FULL FIXED loaded")
+Notify("SIMPLE", "v3 loaded - high paths, no water death")
+print("[SIMPLE] Auto Sea 3 FULL FIXED v3 loaded")
