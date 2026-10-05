@@ -68,7 +68,7 @@ S.Enabled = true
 
 -- SAFE POSITIONS
 local COLOSSEUM_JAIL = CFrame.new(-2870, 9, -5420)          -- King Red Head area
-local MANSION_SAFE   = CFrame.new(2284.5, 27.5, 905.3)      -- elevated solid ground outside Swan Room (NO WATER)
+local MANSION_SAFE   = CFrame.new(2284.5, 27.5, 905.3)      -- elevated solid ground (NO WATER)
 local GREEN_ZONE_DOCK= CFrame.new(-3140, 7, -3400)          -- Mr. Captain approx
 
 local StatusText = "Starting...  PlaceId " .. tostring(PlaceId)
@@ -245,7 +245,7 @@ task.spawn(function()
                 while S.Enabled and tick() - start < 15 do
                     local root = HRP()
                     if root then
-                        root.CFrame = MANSION_SAFE   -- stays on solid ground, never water
+                        root.CFrame = MANSION_SAFE
                     end
                     task.wait(0.3)
 
